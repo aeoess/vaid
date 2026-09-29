@@ -106,6 +106,8 @@ estate cannot attribute a write to a session.** Every automated actor is the sam
 login. That was tolerable while one session ran at a time. It is not tolerable for
 a release repository, where a tag push publishes.
 
+This estate sells attribution and cannot currently attribute its own releases.
+
 Worth considering: a distinct machine account or token per session so that
 attribution exists at all, and a check that refuses a release tag whose commit is
 not the tip of `main` at push time.
@@ -116,3 +118,6 @@ not the tip of `main` at push time.
 * `GHSA-p336-fc9m-vcq4`, the advisory this release fixes.
 * The resolvability gate fix, PR #97, which is the change the cancellation was
   trying to sequence before the publish.
+* Issue #103, the shared-identity problem this incident exposed, with both
+  proposals: per-session identity, and a check that refuses a release tag whose
+  commit is not the tip of `main`.
