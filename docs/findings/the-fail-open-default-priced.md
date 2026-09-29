@@ -66,7 +66,11 @@ Four things did **not** break, and each one narrows the blast radius:
    surface (R.1), and `verdict_v1.json` takes revocation status as an *input*
    (`revocation_states: ["not_revoked","revoked","unavailable"]`) rather than
    deriving it. `mint_conformance`, `chain_conformance` and `verdict_conformance`
-   stayed green under the flip; `verify-vector-freeze` reports 32 vectors unchanged.
+   stayed green under the flip. `verify-vector-freeze` was then extended so that it
+   covers a version in flight instead of skipping it: it reports 11 vectors
+   unchanged under their released versions and vaid-mint's 24 carried forward
+   unchanged from the 0.8.0 tags, 0 moved. The earlier wording here, "reports 32
+   vectors unchanged", cited a run that had not examined any vaid-mint vector.
    **VERIFIED.**
 3. **Authenticity is untouched.** `verify_vaid_authenticity` never consults
    revocation (R.7). Third-party, offline and cross-organisation verification —

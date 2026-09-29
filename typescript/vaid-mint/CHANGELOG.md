@@ -42,7 +42,17 @@ suites run, and the tree restored:
   the portable property that is the point of a VAID — does not change.
 - **No conformance vector is affected.** Revocation is outside the conformance
   surface (R.1) and `verdict_v1.json` takes revocation status as an *input* rather
-  than deriving it. The vector freeze reports 32 vectors unchanged.
+  than deriving it.
+
+  The freeze check now covers this release rather than skipping it. Until
+  `verify-vector-freeze` was extended in this changeset it had no opinion on a
+  version with no release tag, so vaid-mint's own 24 vectors were the ones it did
+  not examine: the run reported 11 frozen and 24 NOT CHECKED. An earlier draft of
+  this entry read "the vector freeze reports 32 vectors unchanged", which was
+  wrong twice over, in the count and in what had been looked at. The check now
+  compares an in-flight version against the previous release tag and reports
+  **11 vectors unchanged under their released versions, and vaid-mint's 24
+  carried forward unchanged from the 0.8.0 tags, 0 moved**.
 
 You are affected only if you call `ReferenceIssuer.verifyVaid` or
 `revocationStatus` on an issuer you have not given a revocation backend.
