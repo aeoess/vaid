@@ -140,7 +140,7 @@ entry above. The seam and the default were decided separately and shipped togeth
 the seam makes durable revocation implementable, and the flip stops the
 non-durable one from vouching.
 
-## [0.8.0] — UNRELEASED
+## [0.8.0] — released 2026-09-22
 
 ### Fixed — BREAKING: a child VAID can no longer outlive its parent (vaid#79)
 
