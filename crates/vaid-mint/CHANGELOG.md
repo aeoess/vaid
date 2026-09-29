@@ -5,6 +5,22 @@ All notable changes to `vaid-mint` are documented here. This project adheres to
 
 ## [0.9.0]
 
+> **Read this before upgrading. A bare `ReferenceIssuer` no longer verifies what
+> it just minted.** The default revocation posture changes from fail-open to
+> fail-closed: an issuer with no revocation backend now reports `Unavailable` and
+> refuses, where it previously vouched `NotRevoked`. This is a security fix
+> (`GHSA-p336-fc9m-vcq4`), and it is a behaviour change that no type signature
+> will warn you about.
+>
+> **PyPI users, pin this.** `pip install vaid-mint` and `vaid-mint>=0.8.0` both
+> resolve straight onto this release. Cargo's `"0.8"` and npm's `^0.8.0` do not,
+> because both read a `0.x` caret as pinning the minor; pip has no equivalent
+> convention. Use `~=0.9.0` or `==0.9.0`.
+>
+> Remedies, in the order most people want them: inject a durable backend with
+> `with_revocation_backend`; load revocation state before verifying; or ask for
+> the old posture by name with `assuming_nothing_revoked()`.
+
 ### BREAKING — the reference issuer now fails closed out of the box
 
 `ReferenceIssuer`'s default revocation store was `assume_nothing_revoked()`: it

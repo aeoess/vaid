@@ -231,8 +231,16 @@ format.
 From PyPI (pulls `vaid-pop`, `cryptography`, `rfc8785` automatically):
 
 ```
-pip install vaid-mint
+pip install 'vaid-mint~=0.9.0'
 ```
+
+**Pin the version, and do not use a bare name or `>=`.** This package makes
+breaking changes in `0.x` minor releases, which SemVer permits and which Cargo and
+npm both refuse to cross on a caret. pip has no equivalent convention, so
+`vaid-mint` or `vaid-mint>=0.9.0` will resolve onto the next breaking release
+without telling you. 0.9.0 is itself such a release: the default revocation
+posture changed from fail-open to fail-closed, so an issuer with no revocation
+backend now refuses to verify rather than vouching. See the CHANGELOG.
 
 **Local dev only** — from a repo checkout, install both editable:
 
