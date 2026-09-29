@@ -82,15 +82,18 @@ Everything below installs from **crates.io / PyPI / npm** — no repo checkout, 
 server, no API key.
 
 ```sh
-cargo add vaid-pop vaid-client vaid-mint                       # Rust
-pip install vaid-pop 'vaid-mint~=0.9.0' vaid-langchain         # Python
-npm install vaid-pop vaid-client vaid-mint                     # TypeScript
+cargo add vaid-pop vaid-client vaid-mint                  # Rust
+pip install vaid-pop 'vaid-mint~=X.Y' vaid-langchain      # Python, see below
+npm install vaid-pop vaid-client vaid-mint                # TypeScript
 ```
 
-**Pin `vaid-mint` on PyPI.** Cargo and npm read `0.x` carets as pinning the minor,
-so `"0.9"` and `^0.9.0` will not cross a breaking `0.x` release on their own. pip
-has no such convention: a bare `vaid-mint` or `vaid-mint>=0.9.0` will resolve
-straight onto the next breaking release. Use `~=0.9.0` or `==0.9.0`.
+**Pin `vaid-mint` on PyPI, substituting the current version for `X.Y` from the
+badge above.** Of the three registries, crates.io and npm both read a `0.x` caret
+as pinning the minor, so neither will cross a breaking `0.x` release on its own.
+PyPI has no equivalent convention: a bare `vaid-mint`, or `vaid-mint>=` anything,
+resolves straight onto the next breaking release without telling you. This package
+does make breaking changes in `0.x` minor releases, which SemVer permits. Use `~=`
+or `==`.
 
 Then check the artifact you actually received, rather than taking this README's
 word for it. **Each ecosystem ships a packaged conformance firewall**, so the check
@@ -98,7 +101,7 @@ runs against the installed package:
 
 ```sh
 cargo install vaid-mint && vaid-mint-conformance        # crates.io
-pip install 'vaid-mint~=0.9.0' && vaid-mint-conformance # PyPI
+pip install vaid-mint && vaid-mint-conformance          # PyPI
 npx -p vaid-mint vaid-mint-conformance                 # npm
 ```
 
