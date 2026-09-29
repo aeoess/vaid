@@ -86,6 +86,11 @@ const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const failures = [];
 const notes = [];
 const checked = [];
+// In-flight accounting. Separate from `checked`/`notes` so the summary can never
+// add an in-flight vector to the frozen count: they are different assertions.
+const carried = [];
+const moved = [];
+const noBaseline = [];
 
 /** The field every frozen vector in this repo carries. */
 const DIGEST_FIELD = 'digest_sha256_hex';
@@ -205,6 +210,42 @@ function releaseTagFor(pkg) {
   return null;
 }
 
+/** Parse the version out of any tag shape `releaseTagFor` would have produced. */
+function versionInTag(pkg, tag) {
+  for (const prefix of [`${pkg.eco}-${pkg.name}-v`, `${pkg.eco}-v`, 'v']) {
+    if (tag.startsWith(prefix)) {
+      const rest = tag.slice(prefix.length);
+      if (/^\d+\.\d+\.\d+$/.test(rest)) return rest;
+    }
+  }
+  return null;
+}
+
+const cmpVersion = (a, b) => {
+  const x = a.split('.').map(Number);
+  const y = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] - y[i];
+  return 0;
+};
+
+/**
+ * The highest release tag for this package STRICTLY BELOW its current version.
+ *
+ * This is what makes an in-flight version a SUBJECT rather than a skip. See the
+ * long comment at the in-flight branch below for why the comparison against it is
+ * a reading with three outcomes and not a pass/fail.
+ */
+function previousReleaseTagFor(pkg) {
+  let best = null;
+  for (const t of TAGS) {
+    const v = versionInTag(pkg, t);
+    if (v === null) continue;
+    if (cmpVersion(v, pkg.version) >= 0) continue;
+    if (best === null || cmpVersion(v, best.version) > 0) best = { tag: t, version: v };
+  }
+  return best;
+}
+
 /* -------------------------------- checking ------------------------------- */
 
 /**
@@ -275,7 +316,67 @@ for (const pkg of packages) {
     // Backfilling a tag for (b) requires knowing the exact published commit.
     // Guessing it would create a FALSE baseline — worse than no baseline, since
     // it would report ✓ against a comparison point that was never released.
-    notes.push(`  · [${pkg.dir}] ${pkg.name} ${pkg.version} — no release tag, so its ${vectors.length} vector(s) are NOT checked (either in flight, or released-but-untagged)`);
+    // IN FLIGHT: compare against the PREVIOUS release instead of skipping.
+    //
+    // This branch used to `continue`, and the package being released was
+    // therefore the one package this check had no opinion about. vaid-mint
+    // 0.9.0 made that concrete: 24 of 35 vectors went unexamined, and the
+    // release notes cited the resulting "✓" as evidence the vectors had not
+    // moved. The check said nothing of the kind. It had not looked.
+    //
+    // The previous release tag is a real baseline, so the comparison is a
+    // reading. It is NOT a pass/fail, because a version bump is exactly when a
+    // wire contract is ALLOWED to move; failing here would forbid the releases
+    // this project exists to make. It has three outcomes and each is counted:
+    //
+    //   CARRIED FORWARD  identical to the previous release. The release makes
+    //                    no wire change, and that is now ASSERTED rather than
+    //                    assumed from a skip.
+    //   MOVED            the digest changed since the previous release. Legal,
+    //                    and loud: a release that moves the wire contract must
+    //                    say so in its CHANGELOG, and this is what tells a
+    //                    reviewer to go and check that it does.
+    //   NO BASELINE      no earlier release tag exists at all (a first release).
+    //                    Genuinely unexaminable, and named as such.
+    //
+    // A released-but-untagged package still lands here rather than under a tag
+    // of its own version, so tag hygiene still bounds what this can say. The
+    // difference is that it can now say it about a definite comparison point.
+    const prev = previousReleaseTagFor(pkg);
+    if (!prev) {
+      noBaseline.push(
+        `  · [${pkg.dir}] ${pkg.name} ${pkg.version} — no release tag for this version and no earlier release to compare against; its ${vectors.length} vector(s) have NO BASELINE`
+      );
+      continue;
+    }
+    for (const v of vectors) {
+      const label = `[${v}] (${pkg.name} ${pkg.version}, in flight, vs ${prev.tag})`;
+      let nowText;
+      try {
+        nowText = readFileSync(join(ROOT, v), 'utf8');
+      } catch (e) {
+        failures.push(`  ✗ ${label}: unreadable (failing closed): ${e.message}`);
+        continue;
+      }
+      const now = freezeKeyOf(nowText, label);
+      if (now === undefined) continue;
+
+      const thenText = readAtTag(prev.tag, v);
+      if (thenText === null) {
+        moved.push(`  · ${v} — NEW since ${prev.tag} (${pkg.name} ${pkg.version} in flight)`);
+        continue;
+      }
+      const then = freezeKeyOf(thenText, `${label} at ${prev.tag}`);
+      if (then === undefined) continue;
+
+      if (now.mode !== then.mode || now.value !== then.value) {
+        moved.push(
+          `  · ${v} — MOVED since ${prev.tag}: ${then.mode} ${then.value.slice(0, 16)}… → ${now.mode} ${now.value.slice(0, 16)}…`
+        );
+      } else {
+        carried.push(`  ✓ ${v} — carried forward unchanged from ${prev.tag} (${pkg.name} ${pkg.version} in flight)`);
+      }
+    }
     continue;
   }
 
@@ -334,6 +435,20 @@ console.log(`Discovered ${packages.length} package(s); checked ${checked.length}
 for (const c of checked.sort((a, b) => a.v.localeCompare(b.v))) {
   console.log(`  ✓ ${c.v} — unchanged since ${c.tag}${c.mode === 'content-hash' ? ' (content hash — predicate vector)' : ''}`);
 }
+if (carried.length) {
+  console.log(`\nIN FLIGHT, CARRIED FORWARD — ${carried.length} vector(s) identical to the previous release:`);
+  for (const c of carried.sort()) console.log(c);
+}
+if (moved.length) {
+  console.log(`\nIN FLIGHT, MOVED — ${moved.length} vector(s) changed since the previous release:`);
+  for (const m of moved.sort()) console.log(m);
+  console.log('  This is LEGAL in a version bump and must be stated in the CHANGELOG.');
+  console.log('  If the release notes claim no wire change, they contradict this list.');
+}
+if (noBaseline.length) {
+  console.log(`\nNO BASELINE — ${noBaseline.length} package(s) with no earlier release to compare against:`);
+  for (const n of noBaseline.sort()) console.log(n);
+}
 if (notes.length) {
   console.log(`\nNOT CHECKED — ${notes.length} (named, never silently skipped):`);
   for (const n of notes.sort()) console.log(n);
@@ -347,4 +462,14 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`\n✓ vector freeze — ${checked.length} vector(s) unchanged under their released versions, ${notes.length} not checked (see above).`);
+// Every number in this line is a COUNT of something actually examined. The two
+// assertions are deliberately never summed: "unchanged under a released version"
+// is a freeze, "carried forward while in flight" is a comparison against the
+// previous release. Adding them would produce one large reassuring number that
+// means neither thing, which is how "32 vectors unchanged" came to be written
+// about a run that froze 11.
+console.log(
+  `\n✓ vector freeze — ${checked.length} vector(s) unchanged under their released versions; ` +
+    `in flight: ${carried.length} carried forward, ${moved.length} moved, ${noBaseline.length} package(s) with no baseline; ` +
+    `${notes.length} not checked (see above).`
+);
