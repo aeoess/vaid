@@ -538,6 +538,25 @@ jobs:
     steps:
       # Registries are read-after-write eventually consistent; a fresh version is
       # not instantly resolvable. Retry rather than fail a good release.
+      #
+      # POLL THE INDEX THE INSTALLER READS, NOT A DIFFERENT ONE.
+      #
+      # This gate used to poll each registry's human/JSON API: for PyPI,
+      # `https://pypi.org/pypi/<pkg>/<ver>/json`. The step immediately after it runs
+      # `pip install`, and pip does not read that. It reads the SIMPLE index at
+      # `https://pypi.org/simple/<pkg>/`. The two propagate independently.
+      #
+      # On the vaid-mint 0.9.0 PyPI release the gate reported "resolvable after 1
+      # attempt(s)" and `pip install` then failed with "Could not find a version
+      # that satisfies the requirement vaid-mint==0.9.0", listing every version up
+      # to 0.8.0. The publish had succeeded and the artifact was correct. The gate
+      # had answered a different question from the one the next step asks, so it
+      # waited for nothing and a good release was recorded as a failure.
+      #
+      # Each arm below now polls exactly what its installer resolves against, and
+      # asserts the VERSION IS PRESENT IN THE BODY rather than trusting a 200: an
+      # index page for a package that exists returns 200 whether or not it lists
+      # the version being released, which is the same masked-green shape again.
       - name: Wait for the new version to be resolvable
         env:
           ECO: ${{ needs.resolve.outputs.eco }}
@@ -545,17 +564,57 @@ jobs:
           V: ${{ needs.resolve.outputs.version }}
         run: |
           set -euo pipefail
+
+          # cargo resolves against the sparse index, not crates.io/api.
+          crates_index_url() {
+            local n; n=$(printf '%s' "$1" | tr 'A-Z' 'a-z')
+            case ${#n} in
+              1) printf 'https://index.crates.io/1/%s' "$n" ;;
+              2) printf 'https://index.crates.io/2/%s' "$n" ;;
+              3) printf 'https://index.crates.io/3/%s/%s' "${n:0:1}" "$n" ;;
+              *) printf 'https://index.crates.io/%s/%s/%s' "${n:0:2}" "${n:2:2}" "$n" ;;
+            esac
+          }
+          # PEP 503 normalisation: the simple index path is the normalised name.
+          pypi_simple_url() {
+            local n; n=$(printf '%s' "$1" | tr 'A-Z' 'a-z' | sed -E 's/[-_.]+/-/g')
+            printf 'https://pypi.org/simple/%s/' "$n"
+          }
+
+          # The version must be a full X.Y.Z before it is used to build a pattern.
+          # A truncated one prefix-matches: "0.9" is found inside "0.9.0" in the
+          # PyPI filename list, so a gate given "0.9" would report a release that
+          # does not exist as present. The preflight already asserts manifest ==
+          # tag, so this is unreachable in practice and fails closed anyway.
+          if [[ ! "$V" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::version '$V' is not a bare X.Y.Z; refusing to build a resolvability pattern from it."
+            exit 1
+          fi
+          # Escape the dots. Unescaped they are regex wildcards, so '0.9.0' would
+          # also match '0X9Y0' — a needle that can match something that is not the
+          # version it names.
+          VESC=${V//./\\.}
+
           case "$ECO" in
-            rust)   URL="https://crates.io/api/v1/crates/$PKG/$V" ;;
-            python) URL="https://pypi.org/pypi/$PKG/$V/json" ;;
-            npm)    URL="https://registry.npmjs.org/$PKG/$V" ;;
+            rust)   URL=$(crates_index_url "$PKG"); NEEDLE="\"vers\":\"${VESC}\"" ;;
+            # Filenames normalise '-' to '_', so match the version token itself,
+            # bounded so 0.9.0 cannot be satisfied by 0.9.01 or 10.9.0.
+            python) URL=$(pypi_simple_url "$PKG");  NEEDLE="-${VESC}[-.]" ;;
+            # npm resolves the whole packument, then picks the version out of it.
+            npm)    URL="https://registry.npmjs.org/$PKG";  NEEDLE="\"${VESC}\"" ;;
           esac
+
+          echo "polling $URL for $PKG $V (the index $ECO's installer reads)"
           for i in $(seq 1 30); do
-            code=$(curl -sS -o /dev/null -w '%{http_code}' -A 'solara-vaid-release' "$URL" || echo 000)
-            if [[ "$code" == "200" ]]; then echo "resolvable after ${i} attempt(s)"; exit 0; fi
-            echo "attempt $i: HTTP $code — waiting"; sleep 10
+            body=$(curl -sS -A 'solara-vaid-release' "$URL" 2>/dev/null || true)
+            if [[ -n "$body" ]] && grep -Eq -- "$NEEDLE" <<<"$body"; then
+              echo "resolvable after ${i} attempt(s) — $V present in the installer's index"
+              exit 0
+            fi
+            echo "attempt $i: not yet listed — waiting"
+            sleep 10
           done
-          echo "::error::$PKG $V never became resolvable on $ECO after 5 minutes. The publish step reported success — investigate before re-running."
+          echo "::error::$PKG $V never appeared in ${ECO}'s installer index after 5 minutes. The publish step reported success — investigate before re-running."
           exit 1
 
       - name: Install Rust toolchain (pinned to rust-toolchain.toml)
