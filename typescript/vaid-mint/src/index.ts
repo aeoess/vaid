@@ -12,8 +12,7 @@
  * *durable* revocation) is the closed product and is deliberately NOT here.
  * Revocation has a pluggable seam here — three-state and lineage-aware
  * ({@link RevocationCheck}, injected via
- * {@link ReferenceIssuer.withRevocationBackend} — both durable halves at once),
- * specified in
+ * {@link ReferenceIssuer.withRevocationCheck}), specified in
  * `docs/spec/revocation.md` R.4 and failing closed when status is unavailable —
  * with a non-durable in-memory default, and VAID expiry (TTL) is hard-enforced at
  * verification. What stays commercial is durable, restart-surviving revocation
@@ -106,16 +105,13 @@ export {
 
 export {
   assembleLineage,
-  InMemoryLineageStore,
   InMemoryRevocationList,
   MAX_LINEAGE_DEPTH,
   parentResolutionOf,
   parentResolutionRoot,
   parentResolutionUnknown,
-  RevocationBackend,
   RevocationStatus,
   type LineageResolver,
-  type LineageStore,
   type ParentResolution,
   type RevocationCheck,
 } from './revocation.js';

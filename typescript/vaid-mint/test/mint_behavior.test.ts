@@ -34,11 +34,7 @@ import {
 
 function fixture(): { service: MintService; audit: InMemoryAudit; issuer: ReferenceIssuer } {
   const audit = new InMemoryAudit();
-  // `assumingNothingRevoked()` because these tests are about minting, attenuation and
-  // scope containment. Since 0.8.0 a bare issuer's revocation store is absent, so
-  // `verifyVaid` would fail closed on Unavailable regardless of what the child's scope
-  // says — a rejection for the wrong reason.
-  const issuer = ReferenceIssuer.ephemeral(1).assumingNothingRevoked();
+  const issuer = ReferenceIssuer.ephemeral(1);
   return { service: new MintService(issuer, audit), audit, issuer };
 }
 
@@ -314,9 +310,7 @@ test('a rejected attenuation does not consume the PoP nonce', async () => {
 
 test('end-to-end: a minted child verifies against its issuer and is contained by its parent', async () => {
   const audit = new InMemoryAudit();
-  // Vouching: the subject is attenuation and scope containment, not the 0.8.0
-  // fail-closed default (see revocation_seam.test.ts, cross-language scenarios).
-  const issuer = ReferenceIssuer.ephemeral(1).assumingNothingRevoked();
+  const issuer = ReferenceIssuer.ephemeral(1);
   const service = new MintService(issuer, audit);
 
   // Mint a REAL parent root through the issuer, so its lineage is recorded and
