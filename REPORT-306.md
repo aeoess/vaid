@@ -184,3 +184,153 @@ Allan's decisions: permanent extension URI
 No halt condition was reached. Every step in the follow-up brief was
 completed.
 
+## Follow-up 2 (fixing PR #107 CI, same branch, same clone)
+
+Identified via `gh pr checks 107` and each failing job's own log (not
+guessed from names). The two checks `gh pr checks` actually reported failing
+were **not** the ones named as examples in the brief; both turned out to
+trace to the same root cause (the new `python/vaid-a2a` package).
+
+### 1. "Every publishable package is reachable by the release workflow"
+
+- **Root cause**: `scripts/verify-release-map.mjs` walks `python/` for every
+  directory with a `pyproject.toml` and requires a `release-map.json` entry.
+  `python/vaid-a2a` had none: `✗ python/vaid-a2a holds python package
+  "vaid-a2a" with no release-map.json entry — it cannot be released by the
+  workflow.`
+- **Fix**: read the script in full first. It has no "not publishable"
+  marker of its own — no `applicable:false`, no private flag, nothing; the
+  only two states it recognises are "has an entry" and "doesn't". Per the
+  brief's instruction for this named case, registered
+  `"python/vaid-a2a": { "dir": "python/vaid-a2a" }` in `release-map.json`,
+  matching the three existing Python entries exactly. This makes the
+  package reachable **by tag** only; `.github/workflows/release.yml` is
+  tag-triggered ("ONE TAG PUBLISHES ONE PACKAGE"), so the entry alone
+  triggers, bumps or publishes nothing.
+- **Commit**: `39ec147`.
+- **Final CI status**: **pass** (confirmed via `gh pr checks 107` after the
+  full run completed).
+
+### 2. "Capabilities manifest & claims-register verified"
+
+This is one job with ten sequential steps; GitHub Actions stops a job at
+its first failing step, so each fix below exposed the next step rather than
+revealing a second, independent job-level failure.
+
+- **Root cause (the step that was actually failing)**: "Verify each package
+  agrees with itself (internal version agreement)"
+  (`scripts/verify-internal-versions.mjs`). It requires, for every
+  `python/*/pyproject.toml` package, that the manifest version, the
+  package's own `__version__` in `__init__.py`, and `CHANGELOG.md`'s top
+  heading all agree. `vaid_a2a/__init__.py` had no `__version__` line at
+  all (regex found no match, which the script treats as "exists but
+  unparseable", not "absent" — it reads the file but then simply did not
+  write the constant), and `python/vaid-a2a/CHANGELOG.md` did not exist.
+  Exact failure: `✗ [python/vaid-a2a] vaid-a2a: vaid_a2a/__init__.py
+  __version__ exists but its value could not be parsed (failing closed)`.
+- **Fix**: added `__version__ = "0.1.0"` to `vaid_a2a/__init__.py`
+  (matching `pyproject.toml`) and a `CHANGELOG.md` with a `## [0.1.0]`
+  top heading, both in the exact style of `vaid-pop`/`vaid-mint`/
+  `vaid-langchain`'s existing files. No check-script edit.
+- **Commit**: `39ec147`.
+- **Verified locally before pushing**: `node scripts/verify-internal-versions.mjs`
+  — all 11 packages (the three existing Python packages, three Rust, three
+  TypeScript, `vaid-skill`, and now `vaid-a2a`) report "each self-consistent".
+  **Confirmed in the real CI run**: this step now passes.
+
+- **What this fix exposed, and why it is NOT fixed here**: fixing (1)
+  made `python/vaid-a2a` visible to `scripts/verify-package-versions.mjs`
+  too (a separate script, later in the same job, that was never reached in
+  the original failing run). It fails with two errors:
+  `✗ [python/vaid-a2a] vaid-a2a (pypi) exists in the tree but is NOT in
+  REGISTRY_SCOPE` and `✗ [python/vaid-a2a] vaid-a2a 0.1.0 (pypi) is TAGGED
+  as released but is NOT on the registry`.
+
+  The second line is the real finding. `vaid-a2a` has never been tagged.
+  The tag it names, `python-v0.1.0`, is a **legacy, pre-per-package-naming
+  tag** (the repo's tags run `python-v0.1.0` through `python-v0.6.0` before
+  the convention changed to `python-vaid-mint-v0.7.0` etc.) — almost
+  certainly an early, un-renamed release tag for `vaid-mint` or `vaid-pop`.
+  The script's tag lookup (`releaseTagFor`) falls back from
+  `{eco}-{name}-v{version}` to the bare `{eco}-v{version}` form, and that
+  bare form matches **any** package in the ecosystem at that version,
+  regardless of which package the tag was actually for. Every existing
+  Python package that happens to sit at `0.1.0` is already published (so
+  `classifyParity` returns `'published'` before the tag is ever
+  consulted — `live` is checked first), which is why this collision has
+  never surfaced before. `vaid-a2a` is the first **unpublished** package at
+  a version a legacy generic tag also matches, and that is what makes the
+  false positive visible.
+
+  Three ways to clear it, all considered and all rejected for this
+  session:
+  - **Re-run the publish.** Not applicable — there is nothing to re-run;
+    no such release ever happened for this package. Also forbidden by the
+    ground rules (no publish).
+  - **Delete the tag**, which the check's own error message offers as a
+    remedy. Rejected: `python-v0.1.0` is real, load-bearing release
+    history, almost certainly the actual first-release tag for `vaid-mint`
+    or `vaid-pop` from before the renaming convention existed. Deleting it
+    is a destructive, likely irreversible action on shared history that
+    could flip a currently-passing assertion for an unrelated, already
+    -published package, and is far outside what this branch's own changes
+    justify touching.
+  - **Mark `vaid-a2a` via the script's own opt-out (`"Private :: Do Not
+    Upload"` classifier) or its `WAIVERS` mechanism.** Rejected: both are
+    data declared *inside* `scripts/verify-package-versions.mjs`, and both
+    would overclaim. The opt-out's documented meaning is "we will NEVER
+    publish this" — stronger than "not released yet" with no further
+    plan stated. A waiver's documented meaning is "publishing it is the
+    plan, and a decision no PR can make is blocking it, until `expires`"
+    — it would need a real, non-fabricated expiry and reason, neither of
+    which exists. Using either to suppress what is actually a false
+    positive from the tag-matching fallback would record something false
+    in the one place meant to be the honest declaration of release state.
+
+  The only correct fix is tightening `releaseTagFor`'s fallback — e.g. not
+  falling back to the bare `{eco}-v{version}` form once a package has any
+  per-package-named tag convention available, or scoping the legacy bare
+  form to the specific packages it was actually used for. That is an edit
+  to the check script itself.
+
+- **Halt reason**: per this session's explicit halt conditions, a fix
+  requiring a check-script edit halts here rather than proceeding. No
+  change was made to `scripts/verify-package-versions.mjs`,
+  `release-map.json`'s `python/vaid-a2a` entry was kept (it is correct and
+  independently required by check (1)), and nothing was added to
+  `REGISTRY_SCOPE` or `WAIVERS` in the unfixed script.
+
+### Local test run (step 3)
+
+Full Python suite, all four packages, after the two fixes above:
+
+| package | tests |
+|---|---|
+| vaid-mint | 185 passed |
+| vaid-pop | 9 passed |
+| vaid-langchain | 14 passed |
+| vaid-a2a | 13 passed |
+
+**221 passed, 0 failed, 0 skipped.**
+
+### Final CI status on PR #107 (confirmed via `gh pr checks 107` / the GitHub API, full run complete)
+
+15 of 16 checks **pass**, including "Python conformance (pytest)" and
+"Every publishable package is reachable by the release workflow" (both
+newly green from this follow-up). **1 check still fails**:
+"Capabilities manifest & claims-register verified", at its
+"Verify in-repo package versions are published (registry parity)" step, for
+the reason above. Run:
+https://github.com/solara-associates/vaid/actions/runs/37789152069
+
+### Commit
+
+`39ec147` on `feat/a2a-extension`, pushed
+(`193cc6a..39ec147`).
+
+This remaining failure needs one of: Allan deciding how `vaid-a2a` should
+be declared in `scripts/verify-package-versions.mjs` (and that decision
+implemented as a follow-up check-script change), or a decision to leave the
+legacy `python-v0.*` tags and accept the script needs its fallback
+tightened regardless of this package.
+
