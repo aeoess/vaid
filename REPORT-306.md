@@ -334,3 +334,177 @@ implemented as a follow-up check-script change), or a decision to leave the
 legacy `python-v0.*` tags and accept the script needs its fallback
 tightened regardless of this package.
 
+## Follow-up 3 (fixing the remaining CI check, same branch, same clone)
+
+Allan's decision: option (a). Authorised to edit
+`scripts/verify-package-versions.mjs`'s tag-fallback logic only; no other
+check script, guard, term list, waiver file or tag.
+
+### 1. Establishing the legacy set from tags and history (not assumed)
+
+For every bare `{eco}-v<version>` tag in the repository, checked — at the
+exact commit the tag points to — which package's manifest actually changed
+to that version, using `git log -p <sha> -- <manifest>` on each candidate
+package's own file. Not inferred from tag names or commit messages alone.
+
+- **`python-v0.1.0` .. `python-v0.6.0`** (10 tags): every one is the EXACT
+  commit that bumped `python/vaid-mint/pyproject.toml`'s `version` field to
+  that value, in unbroken sequence (`0.1.0` initial, then `-> 0.1.1 -> 0.1.2
+  -> 0.1.3 -> 0.2.0 -> 0.3.0 -> 0.4.0 -> 0.4.1 -> 0.5.0 -> 0.6.0`, each a
+  clean one-step diff on that single line). `python/vaid-pop` and
+  `python/vaid-langchain` do not change in any of these 10 commits; where
+  their own version happens to equal a tag's number (`0.1.0`, `0.2.0`),
+  each has its OWN separate tag (`python-vaid-pop-v0.1.0`,
+  `python-vaid-pop-v0.2.0`) at a DIFFERENT commit SHA, proving the number
+  match is coincidence, not a shared release.
+- **`rust-v0.1.0` .. `rust-v0.6.0`** (10 tags): identical method and
+  identical result, for `crates/vaid-mint/Cargo.toml`. `crates/vaid-pop` and
+  `crates/vaid-client` each have their own distinct tags
+  (`rust-vaid-pop-v0.1.0`/`v0.2.0`/`v0.2.1`, `rust-vaid-client-v0.1.0`) for
+  every version they have ever published; none of their releases depend on
+  a bare tag.
+- **`npm-v0.3.0`**: its own annotated tag message states it directly —
+  "vaid-pop / vaid-mint / vaid-client 0.3.0 published to npm (solara-eng),
+  2026-08-03" — a genuine joint release of all three packages at once,
+  confirmed by reading all three `package.json` files at that tag (all
+  read `0.3.0`). `typescript/vaid-pop` and `typescript/vaid-client` are
+  STILL at `0.3.0` in the tree today (checked their current
+  `package.json`) and have no per-package npm tag of their own
+  (`git tag -l "npm-vaid-pop*" "npm-vaid-client*"` returns nothing for
+  either) — `npm-v0.3.0` is not legacy history for them, it is their ONLY
+  release tag, still live.
+- **`npm-v0.4.0` .. `npm-v0.6.0`** (4 tags): same method, same result as
+  the other two ecosystems — each is the exact commit that bumped
+  `typescript/vaid-mint/package.json` to that version; `vaid-pop` and
+  `vaid-client` do not move in these commits (both stay at `0.3.0`).
+
+No other bare-tag ecosyston/package combination was found. Full legacy set:
+
+```
+python/vaid-mint, rust/vaid-mint, npm/vaid-mint, npm/vaid-pop, npm/vaid-client
+```
+
+### 2. The fallback change
+
+`releaseTagFor`'s middle fallback form (`{eco}-v{version}`) is now gated by
+a `LEGACY_BARE_TAG_PACKAGES` set containing exactly those five pairs, with
+a comment explaining why each is there. Diff (full patch also in the commit
+below):
+
+```diff
+ const ECO = { 'crates.io': 'rust', pypi: 'python', npm: 'npm' };
+
++// LEGACY BARE-TAG PACKAGES ONLY. ... (comment explaining the investigation
++// above; see scripts/verify-package-versions.mjs for the full text)
++const LEGACY_BARE_TAG_PACKAGES = new Set([
++  'python/vaid-mint',
++  'rust/vaid-mint',
++  'npm/vaid-mint',
++  'npm/vaid-pop',
++  'npm/vaid-client',
++]);
++
+ function releaseTagFor(eco, name, version) {
+-  for (const t of [`${eco}-${name}-v${version}`, `${eco}-v${version}`, `v${version}`]) {
++  const forms = [`${eco}-${name}-v${version}`];
++  if (LEGACY_BARE_TAG_PACKAGES.has(`${eco}/${name}`)) forms.push(`${eco}-v${version}`);
++  forms.push(`v${version}`);
++  for (const t of forms) {
+     if (TAGS.has(t)) return t;
+   }
+   return null;
+ }
+```
+
+Also added `{ registry: 'pypi', dir: 'python/vaid-a2a', name: 'vaid-a2a' }`
+to `REGISTRY_SCOPE` — safe now that the false tag match is fixed; without
+this the check would still fail on "undeclared package", which is not a
+pass.
+
+**Known, accepted divergence.** The function's own comment ("same three
+forms `verify-vector-freeze.mjs` resolves ... kept identical on purpose")
+is now technically no longer true for the gated middle form —
+`verify-vector-freeze.mjs` was explicitly off-limits this session. In
+practice this does not currently matter: that script's own package list
+only covers packages with frozen vectors (`vaid-mint`, `vaid-pop`,
+`vaid-client`), none of which lose fallback access (all five are either
+not in its list or are in `LEGACY_BARE_TAG_PACKAGES`), so re-running it
+after this change still passes (confirmed below, exit 0, same 35 vectors).
+Flagging the comment's now-stale claim for whoever next touches either
+script.
+
+### 3. Proof the check did not get weaker
+
+- **Passes for `vaid-a2a`**: `node scripts/verify-package-versions.mjs`
+  exits 0; `vaid-a2a` reports `IN FLIGHT` (bumped, not yet published —
+  correct, since nothing was published) instead of the previous false
+  `half-released`.
+- **Identical result for every existing package**: ran the UNMODIFIED
+  script from a clean `git worktree add --detach /tmp/vaid-main-check
+  origin/main` (so `import.meta.url`-relative paths resolve correctly) and
+  diffed its "Notes" section against this branch's run. Byte-identical for
+  all 9 pre-existing packages — same published-version counts, same
+  "all tagged" status, same `NOT APPLICABLE` entry, same 0 waived — the
+  only change is `vaid-a2a` being newly present. Worktree removed after
+  the comparison.
+- **Still FAILS for a genuinely tagged-but-unpublished package**: created a
+  temporary LOCAL-ONLY tag, `python-vaid-a2a-v0.1.0`, pointing at `HEAD`
+  (never pushed). Re-ran the script (with two conflicting self-check
+  fixtures momentarily commented out, since they assert no such tag
+  exists): it reported `✗ [python/vaid-a2a] vaid-a2a 0.1.0 (pypi) is
+  TAGGED as released but is NOT on the registry` — exit 1, exactly the
+  negative case the check exists for. Deleted the tag immediately after
+  (`git tag -d python-vaid-a2a-v0.1.0`) and restored the self-check
+  fixtures to their real form; confirmed clean afterwards.
+  `git tag -l | grep vaid-a2a` is empty; nothing was ever pushed.
+- **New test added**: the script's existing `selfCheck()` tests
+  `classifyParity` with synthetic fixtures only — it never exercised
+  `releaseTagFor` itself. Added `releaseTagFallbackSelfCheck()`, run on
+  every invocation against the REAL git tags (not synthetic fixtures,
+  since the bug this guards against could only be produced against real
+  history): all five `LEGACY_BARE_TAG_PACKAGES` entries resolve to their
+  real tag, `python/vaid-a2a` does NOT inherit `python-v0.1.0` or any tag
+  at a version with none, and `python/vaid-pop`'s own per-package tag
+  still wins over the bare form (proves fallback ORDER was not disturbed).
+  Proved this new self-check is not vacuous: temporarily re-added
+  `'python/vaid-a2a'` to `LEGACY_BARE_TAG_PACKAGES`, reran — it failed loud
+  (`✗ SELF-CHECK FAILED`, `process.exit(2)`, naming both broken cases
+  exactly) — then restored the correct file from a saved copy and reran
+  clean.
+
+### 4. Full verification run
+
+All nine scripts in the "Capabilities manifest & claims-register verified"
+job, plus `verify-release-map.mjs`, run directly: all exit 0 (full output
+captured during the session; summary — `verify-capabilities`,
+`verify-served-versions` ×2, `verify-claims`, `verify-spec-status`,
+`verify-internal-versions`, `verify-release-version`,
+`verify-package-versions`, `verify-vector-freeze`, `verify-crosslang-parity`
+(advisory, reports skew, never fails), `verify-release-map`).
+
+Full Python suite, all four packages:
+
+| package | tests |
+|---|---|
+| vaid-mint | 185 passed |
+| vaid-pop | 9 passed |
+| vaid-langchain | 14 passed |
+| vaid-a2a | 13 passed |
+
+**221 passed, 0 failed, 0 skipped.**
+
+### 5. Commit, push, final CI status
+
+Only `scripts/verify-package-versions.mjs` changed (`git status --short`
+confirmed before committing; 84 insertions, 2 deletions). Commit
+`173a7f9` on `feat/a2a-extension`, pushed (`74cfb05..173a7f9`).
+
+CI run: https://github.com/solara-associates/vaid/actions/runs/37791835848
+
+Confirmed via `gh pr checks 107` (exit 0) and via the GitHub API
+(`gh pr view 107 --json statusCheckRollup`): **16 of 16 checks, all with
+conclusion `SUCCESS`.** PR state `OPEN`, `mergeable: MERGEABLE`.
+
+No halt condition was reached. Every step in this follow-up's brief was
+completed.
+
