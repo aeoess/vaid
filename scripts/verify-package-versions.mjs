@@ -133,6 +133,7 @@ const REGISTRY_SCOPE = [
   { registry: 'pypi',      dir: 'python/vaid-mint',      name: 'vaid-mint' },
   { registry: 'pypi',      dir: 'python/vaid-pop',       name: 'vaid-pop' },
   { registry: 'pypi',      dir: 'python/vaid-langchain', name: 'vaid-langchain' },
+  { registry: 'pypi',      dir: 'python/vaid-a2a',       name: 'vaid-a2a' },
   {
     registry: 'pypi',
     dir: 'python/vaid-client',
@@ -196,14 +197,53 @@ try {
 
 const ECO = { 'crates.io': 'rust', pypi: 'python', npm: 'npm' };
 
+// LEGACY BARE-TAG PACKAGES ONLY. Before per-package tag names existed, releases
+// were tagged in the bare `{eco}-v{version}` form with no package name in it.
+// Established from tags + history for the session-306 follow-up (REPORT-306.md,
+// "Follow-up 3") by checking, at every bare tag's commit, which package's
+// manifest actually changed to that exact version:
+//   - python-v0.1.0 .. python-v0.6.0 and rust-v0.1.0 .. rust-v0.6.0: each tag's
+//     commit is the EXACT commit that bumped vaid-mint's OWN manifest
+//     (python/vaid-mint/pyproject.toml or crates/vaid-mint/Cargo.toml) to that
+//     value, in unbroken sequence, confirmed with `git log -p` on that one file
+//     at each tag. No other package in that ecosystem ever changes in those
+//     commits — vaid-pop and vaid-langchain/vaid-client each have their OWN
+//     distinct tag, at a DIFFERENT commit, for the one or two version numbers
+//     they happen to also sit at (coincidence of the number, not a shared
+//     release).
+//   - npm-v0.3.0 was a genuine JOINT release (its own tag message says so:
+//     "vaid-pop / vaid-mint / vaid-client 0.3.0 published to npm"), and
+//     typescript/vaid-pop and typescript/vaid-client have never been
+//     re-published since — npm-v0.3.0 is still their ONLY release tag today,
+//     not merely a legacy one. npm-v0.4.0 .. npm-v0.6.0 continue as vaid-mint-only
+//     bumps, same pattern as the other two ecosystems, before vaid-mint moved to
+//     its own npm-vaid-mint-v0.7.0+ tags.
+// Restricting the bare fallback to exactly this set is what keeps
+// python/vaid-a2a's false "tagged released" (against the unrelated legacy
+// python-v0.1.0) from recurring for any future package, while leaving every one
+// of these five pairs resolving to the exact same tag they did before.
+const LEGACY_BARE_TAG_PACKAGES = new Set([
+  'python/vaid-mint',
+  'rust/vaid-mint',
+  'npm/vaid-mint',
+  'npm/vaid-pop',
+  'npm/vaid-client',
+]);
+
 /**
  * The release tag for one published version, using the same three forms
  * verify-vector-freeze.mjs resolves — most specific first, ecosystem form as the
  * fallback. Kept identical on purpose: two checks disagreeing about what a release
- * tag looks like would be worse than either being absent.
+ * tag looks like would be worse than either being absent. The one exception is the
+ * bare `{eco}-v{version}` middle form, now gated to LEGACY_BARE_TAG_PACKAGES: that
+ * form is only ever real history for the packages named there, so trying it for
+ * anyone else would read someone else's old tag as this package's own release.
  */
 function releaseTagFor(eco, name, version) {
-  for (const t of [`${eco}-${name}-v${version}`, `${eco}-v${version}`, `v${version}`]) {
+  const forms = [`${eco}-${name}-v${version}`];
+  if (LEGACY_BARE_TAG_PACKAGES.has(`${eco}/${name}`)) forms.push(`${eco}-v${version}`);
+  forms.push(`v${version}`);
+  for (const t of forms) {
     if (TAGS.has(t)) return t;
   }
   return null;
@@ -329,6 +369,48 @@ if (selfCheckProblems.length) {
   process.exit(2);
 }
 console.log('✓ self-check — parity classifier agrees with all seven fixed fixtures (three must-fail, four must-pass).');
+
+/**
+ * Self-check for `releaseTagFor`'s legacy-bare-tag restriction (session-306
+ * follow-up 3). Against the REAL tags in this repository, not fixtures: the
+ * bug this guards against — a false "tagged released" for python/vaid-a2a off
+ * an unrelated legacy python-v0.1.0 tag — could only be produced against real
+ * history, so a synthetic fixture would not have caught it either.
+ */
+function releaseTagFallbackSelfCheck() {
+  const problems = [];
+  const check = (label, eco, name, version, want) => {
+    const got = releaseTagFor(eco, name, version);
+    if (got !== want) problems.push(`${label}: expected ${JSON.stringify(want)}, got ${JSON.stringify(got)}`);
+  };
+  // Every LEGACY_BARE_TAG_PACKAGES entry must still resolve to its real,
+  // pre-rename bare tag — the whole point of keeping the fallback at all.
+  check('legacy python/vaid-mint 0.1.0', 'python', 'vaid-mint', '0.1.0', 'python-v0.1.0');
+  check('legacy rust/vaid-mint 0.1.0', 'rust', 'vaid-mint', '0.1.0', 'rust-v0.1.0');
+  check('legacy npm/vaid-mint 0.4.0', 'npm', 'vaid-mint', '0.4.0', 'npm-v0.4.0');
+  check('legacy npm/vaid-pop 0.3.0 (joint release tag)', 'npm', 'vaid-pop', '0.3.0', 'npm-v0.3.0');
+  check('legacy npm/vaid-client 0.3.0 (joint release tag)', 'npm', 'vaid-client', '0.3.0', 'npm-v0.3.0');
+  // THE RULE: a non-legacy package must NOT match a legacy package's bare tag
+  // merely by sharing its version number. python-v0.1.0 is real history for
+  // vaid-mint; vaid-a2a never shipped under it.
+  check('non-legacy python/vaid-a2a 0.1.0 does not inherit python-v0.1.0', 'python', 'vaid-a2a', '0.1.0', null);
+  // A non-legacy package at a version with NO bare tag at all must also stay
+  // untagged (sanity: null is not a side effect of asking for 'vaid-a2a').
+  check('non-legacy python/vaid-a2a 0.4.0 (no tag of any form exists)', 'python', 'vaid-a2a', '0.4.0', null);
+  // vaid-pop/vaid-langchain's OWN per-package tags must still win over the
+  // bare form for the versions they share a number with — proves the
+  // most-specific-first order was not disturbed by gating the middle form.
+  check('python/vaid-pop 0.1.0 uses its own tag, not the legacy one', 'python', 'vaid-pop', '0.1.0', 'python-vaid-pop-v0.1.0');
+  return problems;
+}
+
+const tagFallbackProblems = releaseTagFallbackSelfCheck();
+if (tagFallbackProblems.length) {
+  console.error('✗ SELF-CHECK FAILED — the legacy bare-tag restriction is broken:');
+  for (const p of tagFallbackProblems) console.error(`  · ${p}`);
+  process.exit(2);
+}
+console.log('✓ self-check — legacy bare-tag fallback agrees with real repository history on all 7 fixed cases.');
 
 /** Every version published on a registry, newest-first order not guaranteed. */
 async function publishedVersions(registry, name) {
