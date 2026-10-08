@@ -18,6 +18,7 @@ Regenerating overwrites every ``*.json`` vector in this directory except
 
 from __future__ import annotations
 
+import base64
 import json
 import uuid
 from pathlib import Path
@@ -114,10 +115,14 @@ def write_vector(name: str, obj: dict) -> None:
     print(f"wrote {path.relative_to(VECTORS_DIR.parent.parent.parent)}")
 
 
+def b64url(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+
+
 def main() -> None:
     trust_config = {
         "trustedIssuers": [
-            {"trustDomain": TRUST_DOMAIN, "kernelKeyThumbprint": KERNEL_KEY_THUMBPRINT}
+            {"trustDomain": TRUST_DOMAIN, "kernelPublicKey": b64url(KERNEL_PUBLIC_KEY)}
         ]
     }
 
@@ -274,11 +279,17 @@ def main() -> None:
         "revoked_vaid_ids": [],
         "expected_result": "fail",
         "expected_error_code": "issuer_mismatch",
-        "note": "kernel_key_thumbprint on these documents: " + UNTRUSTED_KEY_THUMBPRINT,
+        "note": (
+            "kernel_key_thumbprint on these documents: " + UNTRUSTED_KEY_THUMBPRINT +
+            " (not in trust_config.trustedIssuers above, which lists only the "
+            "vector 01-05 key)"
+        ),
     })
 
-    print(f"\nkernel public key thumbprint (vectors 01-05): {KERNEL_KEY_THUMBPRINT}")
-    print(f"untrusted public key thumbprint (vector 06):  {UNTRUSTED_KEY_THUMBPRINT}")
+    print(f"\nkernel public key (vectors 01-05): base64url {b64url(KERNEL_PUBLIC_KEY)}")
+    print(f"  derived thumbprint: {KERNEL_KEY_THUMBPRINT}")
+    print(f"untrusted public key (vector 06):  base64url {b64url(UNTRUSTED_PUBLIC_KEY)}")
+    print(f"  derived thumbprint: {UNTRUSTED_KEY_THUMBPRINT}")
 
 
 if __name__ == "__main__":

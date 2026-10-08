@@ -66,7 +66,10 @@ Declared as an `AgentExtension` entry in `capabilities.extensions[]`:
     "acceptedVersions": ["v3"],
     "issuerKeyDiscovery": "static",
     "trustedIssuers": [
-      { "trustDomain": "vaid.example", "kernelKeyThumbprint": "<base64url thumbprint>" }
+      {
+        "trustDomain": "vaid.example",
+        "kernelPublicKey": "<base64url, raw 32-byte Ed25519 public key>"
+      }
     ],
     "requireVaid": false
   }
@@ -78,8 +81,8 @@ Declared as an `AgentExtension` entry in `capabilities.extensions[]`:
 | field | meaning |
 |---|---|
 | `acceptedVersions` | VAID signature-scheme versions this agent verifies. Currently always `["v3"]` (`VAID_SIG_VERSION_V3`); listed as an array so a future `v4` can be added without a new extension URI. |
-| `issuerKeyDiscovery` | How this agent resolves a kernel public key from a `kernelKeyThumbprint`. `"static"` means the keys are listed inline in `trustedIssuers`. Other discovery methods (a JWKS-style endpoint, a registry) are out of scope for this draft and MUST NOT be assumed from the field's absence. |
-| `trustedIssuers` | Present when `issuerKeyDiscovery` is `"static"`. Each entry is a trust domain and the kernel key thumbprint this agent accepts for it, mirroring `vaid_mint.chain.KernelKeyMap`. A thumbprint not listed here is not trusted, full stop; this is the extension-level expression of the `docs/trust-anchor.md` rule that resolving a key from a source the presenter controls verifies nothing. |
+| `issuerKeyDiscovery` | How this agent resolves a kernel public key for an incoming document's `kernel_key_thumbprint`. `"static"` means the keys are listed inline in `trustedIssuers`. Other discovery methods (a JWKS-style endpoint, a registry) are out of scope for this draft and MUST NOT be assumed from the field's absence. |
+| `trustedIssuers` | Present when `issuerKeyDiscovery` is `"static"`. Each entry is a trust domain and the **raw kernel public key** this agent accepts for it — never a bare thumbprint. A thumbprint alone cannot verify a signature; it is a selector, not key material, and listing only a thumbprint here would verify nothing. The verifier derives each entry's thumbprint from `kernelPublicKey` itself (`kernel_key_thumbprint`, ADR-0004) and uses that to select which key to check an incoming document's signature against — mirroring `vaid_mint.chain.KernelKeyMap`, which is built the same way, from keys, never from a caller-supplied thumbprint. A document whose claimed thumbprint matches no derived entry here is not trusted, full stop; this is the extension-level expression of the `docs/trust-anchor.md` rule that resolving a key from a source the presenter controls verifies nothing. |
 | `requireVaid` | If `true`, this agent refuses any request activating this extension that carries no resolvable VAID on the leaf hop. If `false` (default), a request with no VAID is handled as if the extension were not activated for that hop — the extension degrades to absent, never to a weaker check. |
 
 An agent declaring `required: true` is stating that peers MUST understand and

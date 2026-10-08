@@ -4,7 +4,7 @@
     "trustedIssuers": [
       {
         "trustDomain": "vaid.example",
-        "kernelKeyThumbprint": "urn:ietf:params:oauth:jwk-thumbprint:sha-256:nEArpjG3kYMcxbdzInyGlBEYQUw7RfAfe3Tw1fZvAA0"
+        "kernelPublicKey": "IVL40Zt5HSRFMkLhXy6rbLfP-ntqXtMAl5YOBpiB2xI"
       }
     ]
   },

@@ -4,7 +4,7 @@
     "trustedIssuers": [
       {
         "trustDomain": "vaid.example",
-        "kernelKeyThumbprint": "urn:ietf:params:oauth:jwk-thumbprint:sha-256:nEArpjG3kYMcxbdzInyGlBEYQUw7RfAfe3Tw1fZvAA0"
+        "kernelPublicKey": "IVL40Zt5HSRFMkLhXy6rbLfP-ntqXtMAl5YOBpiB2xI"
       }
     ]
   },
@@ -256,5 +256,5 @@
   "revoked_vaid_ids": [],
   "expected_result": "fail",
   "expected_error_code": "issuer_mismatch",
-  "note": "kernel_key_thumbprint on these documents: urn:ietf:params:oauth:jwk-thumbprint:sha-256:wEnpSYrYOONNWTAK44zUMPY0sU44L_FJ_pXbXdkxFZs"
+  "note": "kernel_key_thumbprint on these documents: urn:ietf:params:oauth:jwk-thumbprint:sha-256:wEnpSYrYOONNWTAK44zUMPY0sU44L_FJ_pXbXdkxFZs (not in trust_config.trustedIssuers above, which lists only the vector 01-05 key)"
 }

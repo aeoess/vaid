@@ -6,7 +6,8 @@ verifier (`a2a/python/`). Each `NN-name.json` file has:
 - `description` — what the vector exercises, in plain language.
 - `trust_config` — the `trustedIssuers` list a verifier under test should be
   configured with before running this vector (mirrors the extension's
-  `AgentCard` `params.trustedIssuers`, §2 of the spec).
+  `AgentCard` `params.trustedIssuers`, §2 of the spec), carrying the raw
+  `kernelPublicKey` for each accepted issuer, not a bare thumbprint.
 - `requested_action` — the action the incoming A2A message is asking to
   perform, for the "action within leaf scope" check (spec §5 step 5).
 - `inputs.leaf` — the VAID document that would travel under the extension's
@@ -38,16 +39,21 @@ use, not a new taxonomy:
 
 Vectors `01` through `05` are signed by a single fixed, **test-only** Ed25519
 kernel key, generated from the 32-byte seed `bytes([0x42]) * 32` — see
-`generate_vectors.py`. Its public key's thumbprint (the value
-`kernelKeyThumbprint` should be set to in a verifier's `trustedIssuers`
-config when running these vectors) is:
+`generate_vectors.py`. Its raw public key, base64url-encoded (the value each
+vector's own `trust_config.trustedIssuers[0].kernelPublicKey` already
+carries, per spec §2 — a verifier derives the thumbprint from this, never
+from a bare thumbprint supplied separately) is:
 
 ```
-urn:ietf:params:oauth:jwk-thumbprint:sha-256:nEArpjG3kYMcxbdzInyGlBEYQUw7RfAfe3Tw1fZvAA0
+IVL40Zt5HSRFMkLhXy6rbLfP-ntqXtMAl5YOBpiB2xI
 ```
+
+which derives to thumbprint
+`urn:ietf:params:oauth:jwk-thumbprint:sha-256:nEArpjG3kYMcxbdzInyGlBEYQUw7RfAfe3Tw1fZvAA0`.
 
 Vector `06` is deliberately signed by a **second**, different test-only key
-(seed `bytes([0x99]) * 32`, thumbprint
+(seed `bytes([0x99]) * 32`, public key `My6-jSfLcyOzpAHBwTtd1kvMwOEOzaHCtdEaA3eaheU`,
+thumbprint
 `urn:ietf:params:oauth:jwk-thumbprint:sha-256:wEnpSYrYOONNWTAK44zUMPY0sU44L_FJ_pXbXdkxFZs`)
 that a verifier configured with only the `01`-`05` trust config has never been
 told to trust — that is the point of the vector.
