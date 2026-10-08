@@ -1,7 +1,7 @@
-"""Runs every vector in docs/a2a/vectors/*.json against verify_a2a_message and
+"""Runs every vector in docs/a2a/v1/vectors/*.json against verify_a2a_message and
 asserts the expected (result, error_code) pair.
 
-The vectors live outside this package, under docs/a2a/vectors/, because they
+The vectors live outside this package, under docs/a2a/v1/vectors/, because they
 are the extension's vectors — not vaid-a2a's private fixtures — and
 test_extension.py-equivalents in other languages would read the same files.
 """
@@ -17,7 +17,7 @@ import pytest
 from vaid_a2a import METADATA_CHAIN_KEY, METADATA_VAID_KEY, verify_a2a_message
 from vaid_mint.revocation import InMemoryRevocationList
 
-VECTORS_DIR = Path(__file__).resolve().parents[3] / "docs" / "a2a" / "vectors"
+VECTORS_DIR = Path(__file__).resolve().parents[3] / "docs" / "a2a" / "v1" / "vectors"
 
 # All vectors are signed with 2026-06-04 issued_at and either a 2999 or a 2020
 # expires_at (see generate_vectors.py) — pinned by distance, not by the clock,

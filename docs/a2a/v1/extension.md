@@ -16,14 +16,12 @@ presented ancestry (`vaid_mint.chain`).
 ## 0. Extension URI
 
 ```
-https://github.com/solara-associates/vaid/blob/main/docs/a2a/extension.md
+https://github.com/solara-associates/vaid/blob/main/docs/a2a/v1/extension.md
 ```
 
-**This URI is provisional.** It resolves to a real, versioned document on this
-branch, which satisfies the A2A requirement that an extension URI be a resolvable,
-stable identifier, but it is not the permanent URI this extension will ship under.
-Allan decides the permanent URI before this leaves draft status; see the report
-for this session.
+This is the permanent extension URI, decided by Allan in the session 306
+follow-up. It resolves to this versioned document, satisfying the A2A
+requirement that an extension URI be a resolvable, stable identifier.
 
 ## 1. Relationship to #2028
 
@@ -59,7 +57,7 @@ Declared as an `AgentExtension` entry in `capabilities.extensions[]`:
 
 ```json
 {
-  "uri": "https://github.com/solara-associates/vaid/blob/main/docs/a2a/extension.md",
+  "uri": "https://github.com/solara-associates/vaid/blob/main/docs/a2a/v1/extension.md",
   "description": "VAID per-hop delegation proof: attenuated, Ed25519-signed, revocable.",
   "required": false,
   "params": {
@@ -110,7 +108,7 @@ extensions use generally:
 ```json
 {
   "metadata": {
-    "https://github.com/solara-associates/vaid/blob/main/docs/a2a/extension.md/vaid": {
+    "https://github.com/solara-associates/vaid/blob/main/docs/a2a/v1/extension.md/vaid": {
       "vaid_id": "...",
       "agent_id": "...",
       "agent_class": "...",
@@ -141,7 +139,7 @@ array position):
 ```json
 {
   "metadata": {
-    "https://github.com/solara-associates/vaid/blob/main/docs/a2a/extension.md/vaidChain": [
+    "https://github.com/solara-associates/vaid/blob/main/docs/a2a/v1/extension.md/vaidChain": [
       { "vaid_id": "...parent...", "parent_vaid": "...grandparent-or-null...", "...": "..." },
       { "vaid_id": "...grandparent...", "parent_vaid": null, "...": "..." }
     ]

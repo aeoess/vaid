@@ -25,10 +25,10 @@ and six test vectors covering authority, not just shape: a wider-than-parent
 child, an expired leaf, a revoked link, an out-of-scope action despite good
 attenuation, and an unrecognised issuer key.
 
-- Spec: https://github.com/solara-associates/vaid/blob/feat/a2a-extension/docs/a2a/extension.md
-- Vectors: https://github.com/solara-associates/vaid/tree/feat/a2a-extension/docs/a2a/vectors
-- Verifier (Python, no a2a-python dependency): https://github.com/solara-associates/vaid/tree/feat/a2a-extension/python/vaid-a2a
+- Spec: https://github.com/solara-associates/vaid/blob/main/docs/a2a/v1/extension.md
+- Vectors: https://github.com/solara-associates/vaid/tree/main/docs/a2a/v1/vectors
+- Verifier (Python, no a2a-python dependency): https://github.com/solara-associates/vaid/tree/main/python/vaid-a2a
 
-All on a branch for now; links move to main once it merges. If anyone here
-has their own token format, the vectors are plain JSON and cheap to run
-against a second implementation, the negative cases especially.
+These links resolve once the branch merges. If anyone here has their own
+token format, the vectors are plain JSON and cheap to run against a second
+implementation, the negative cases especially.

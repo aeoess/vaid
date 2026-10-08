@@ -1,6 +1,6 @@
 """The VAID A2A extension's reference verifier.
 
-Implements the verification order from ``docs/a2a/extension.md`` §5:
+Implements the verification order from ``docs/a2a/v1/extension.md`` §5:
 signature, expiry, chain integrity, per-hop attenuation, requested-action
 scope, revocation — fail closed at the first failing step, and "could not
 determine" is never folded into either a pass or a specific denial.
@@ -37,11 +37,11 @@ from vaid_mint.document import is_expired_at, is_in_scope
 from vaid_mint.revocation import RevocationCheck, RevocationStatus, assemble_lineage
 from vaid_mint.verify import VaidVerdict, verify_vaid_authenticity_graded
 
-#: This extension's URI. PROVISIONAL (see docs/a2a/extension.md §0) — Allan
-#: decides the permanent URI before this leaves draft status. Importing this
-#: constant, rather than a caller hardcoding the string, is what makes that
-#: swap a one-file change instead of a grep-and-replace across every consumer.
-EXTENSION_URI = "https://github.com/solara-associates/vaid/blob/main/docs/a2a/extension.md"
+#: This extension's permanent URI (see docs/a2a/v1/extension.md §0), decided
+#: by Allan in the session 306 follow-up. Importing this constant, rather
+#: than a caller hardcoding the string, is what makes a future version's URI
+#: a one-file change instead of a grep-and-replace across every consumer.
+EXTENSION_URI = "https://github.com/solara-associates/vaid/blob/main/docs/a2a/v1/extension.md"
 
 #: Where the leaf VAID document lives in ``Message.metadata`` (spec §4).
 METADATA_VAID_KEY = f"{EXTENSION_URI}/vaid"
@@ -57,7 +57,7 @@ class VerifyCode(enum.Enum):
     a caller that cannot tell "forged" from "I could not check revocation"
     cannot log, alert, or retry the two differently.
 
-    Values are the wire strings used in ``docs/a2a/vectors/*.json``'s
+    Values are the wire strings used in ``docs/a2a/v1/vectors/*.json``'s
     ``expected_error_code`` and in this module's docstrings — not a new
     vocabulary; each name maps onto an existing ``VaidVerdict`` or
     ``ChainVerification`` member except :attr:`ALLOWED`, :attr:`NO_VAID` and

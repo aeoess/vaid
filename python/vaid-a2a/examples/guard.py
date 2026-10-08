@@ -31,7 +31,7 @@ def handle_message(message: dict, revocation: RevocationCheck) -> dict:
 
     if not result.allowed:
         # result.code is a VerifyCode — map it to whatever error shape this
-        # handler's A2A transport expects (see docs/a2a/extension.md §6).
+        # handler's A2A transport expects (see docs/a2a/v1/extension.md §6).
         return {
             "error": {
                 "code": result.code.value,

@@ -1,7 +1,7 @@
 # A2A extension test vectors
 
-Deterministic test vectors for `docs/a2a/extension.md`, used by the reference
-verifier (`a2a/python/`). Each `NN-name.json` file has:
+Deterministic test vectors for `docs/a2a/v1/extension.md`, used by the
+reference verifier (`python/vaid-a2a/`). Each `NN-name.json` file has:
 
 - `description` — what the vector exercises, in plain language.
 - `trust_config` — the `trustedIssuers` list a verifier under test should be
@@ -66,7 +66,7 @@ byte-reproducible, never for any purpose requiring secrecy.
 
 ```sh
 cd vaid   # repo root
-PYTHONPATH=python/vaid-mint python3 docs/a2a/vectors/generate_vectors.py
+PYTHONPATH=python/vaid-mint python3 docs/a2a/v1/vectors/generate_vectors.py
 ```
 
 Regenerating is deterministic: the script fixes the kernel key, every

@@ -1,5 +1,5 @@
-"""Reference verifier for the VAID A2A extension (``docs/a2a/extension.md``,
-draft, provisional URI).
+"""Reference verifier for the VAID A2A extension (``docs/a2a/v1/extension.md``,
+draft).
 
 Public surface: :func:`~vaid_a2a.verifier.verify_a2a_message`,
 :class:`~vaid_a2a.verifier.VerifyResult`, :class:`~vaid_a2a.verifier.VerifyCode`,

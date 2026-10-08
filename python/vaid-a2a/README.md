@@ -1,8 +1,8 @@
 # vaid-a2a
 
 Reference verifier for the VAID [A2A](https://a2a-protocol.org) extension
-specified in [`docs/a2a/extension.md`](../../docs/a2a/extension.md)
-(**draft**, provisional extension URI).
+specified in [`docs/a2a/v1/extension.md`](../../docs/a2a/v1/extension.md)
+(**draft**).
 
 A2A lets agents delegate work to agents. [a2aproject/A2A#2028](https://github.com/a2aproject/A2A/issues/2028)
 proposes `actorChain`, a caller-supplied record of who acted for whom, and is
@@ -67,7 +67,7 @@ See `examples/guard.py` for use as a guard in front of a request handler.
 
 ## What this checks, and in what order
 
-Exactly the order `docs/a2a/extension.md` §5 specifies — signature, leaf
+Exactly the order `docs/a2a/v1/extension.md` §5 specifies — signature, leaf
 expiry, chain integrity, per-hop attenuation, requested-action scope,
 revocation — fail closed at the first failing step. See the module docstring
 in `vaid_a2a/verifier.py` for the full reasoning behind the order; it mirrors
@@ -85,9 +85,9 @@ rather than reimplements.
 
 ## Test vectors
 
-`tests/test_vectors.py` runs every vector in `docs/a2a/vectors/*.json` and
+`tests/test_vectors.py` runs every vector in `docs/a2a/v1/vectors/*.json` and
 asserts the expected result. Regenerate the vectors from `vaid-mint` tooling
-with `docs/a2a/vectors/generate_vectors.py`; see that directory's own README.
+with `docs/a2a/v1/vectors/generate_vectors.py`; see that directory's own README.
 
 ## Non-goals
 

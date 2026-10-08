@@ -10,7 +10,7 @@ these vectors are reproducible byte-for-byte by re-running this script.
 
 Run from the repo root:
 
-    PYTHONPATH=python/vaid-mint python3 docs/a2a/vectors/generate_vectors.py
+    PYTHONPATH=python/vaid-mint python3 docs/a2a/v1/vectors/generate_vectors.py
 
 Regenerating overwrites every ``*.json`` vector in this directory except
 ``README.md`` and this script.
@@ -109,10 +109,17 @@ def kernel_sign(**kwargs) -> dict:
     return sign(_KERNEL_KEY, KERNEL_KEY_THUMBPRINT, **kwargs)
 
 
+#: docs/a2a/v1/vectors -> docs/a2a/v1 -> docs/a2a -> docs -> repo root. One
+#: level deeper than before the v1 move, so this constant is named rather
+#: than another bare ``.parent`` chain that would need to be recounted by eye
+#: on the next move.
+_REPO_ROOT = VECTORS_DIR.parent.parent.parent.parent
+
+
 def write_vector(name: str, obj: dict) -> None:
     path = VECTORS_DIR / f"{name}.json"
     path.write_text(json.dumps(obj, indent=2, sort_keys=False) + "\n")
-    print(f"wrote {path.relative_to(VECTORS_DIR.parent.parent.parent)}")
+    print(f"wrote {path.relative_to(_REPO_ROOT)}")
 
 
 def b64url(raw: bytes) -> str:

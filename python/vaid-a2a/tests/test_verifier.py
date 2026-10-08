@@ -1,5 +1,5 @@
 """Unit tests for vaid_a2a.verifier behaviour not exercised by the shared
-vectors in docs/a2a/vectors/ — metadata presence/shape and the revocation-
+vectors in docs/a2a/v1/vectors/ — metadata presence/shape and the revocation-
 unavailable fail-closed path."""
 
 from __future__ import annotations
