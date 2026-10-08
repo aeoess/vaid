@@ -132,3 +132,55 @@ None. Every step in the brief was completed.
 ## Draft PR
 
 https://github.com/solara-associates/vaid/pull/107
+
+## Follow-up (same branch, same clone)
+
+Allan's decisions: permanent extension URI
+`https://github.com/solara-associates/vaid/blob/main/docs/a2a/v1/extension.md`;
+`vaid-a2a` stays out of `release-map.json`.
+
+1. **Moved** `docs/a2a/extension.md` -> `docs/a2a/v1/extension.md` and
+   `docs/a2a/vectors/` -> `docs/a2a/v1/vectors/` (`git mv`). Updated the
+   generator's run-path docstring and its relative-path print helper (one
+   extra directory level), and the vectors README's paths.
+   Re-ran `generate_vectors.py`: all 6 JSON vectors came back byte-identical
+   to the pre-move copies (`diff -r`, 0-line diff on every file; confirmed
+   again via `git diff --cached --stat`, which showed 0 lines changed on
+   each renamed `.json`). No halt — the generator embeds no URI, so there
+   was nothing for the URI change to touch inside the vectors themselves.
+2. **Replaced the provisional URI with the permanent one** everywhere it
+   appeared: the spec (§0 and the three `/vaid`, `/vaidChain`,
+   `AgentExtension.uri` examples), `vaid_a2a.verifier.EXTENSION_URI` and its
+   docstrings, `vaid_a2a/__init__.py`, `pyproject.toml`'s description,
+   `README.md`, `examples/guard.py`, and both test files' doc-path mentions.
+   Removed every "provisional"/"PROVISIONAL" occurrence; kept "Status:
+   draft" in the spec and "(**draft**)" in the package README.
+3. **`docs/a2a/drafts/a2a-2028-reply.md`**: the three branch links (spec,
+   vectors, verifier) now point at the equivalent `main` paths under
+   `docs/a2a/v1/`, with a note that they resolve once the branch merges.
+   Re-counted: 236 words (was 242), still 0 em-dashes.
+4. **Full test run**, all four Python packages, after every change above:
+
+   | package | tests |
+   |---|---|
+   | vaid-mint | 185 passed |
+   | vaid-pop | 9 passed |
+   | vaid-langchain | 14 passed |
+   | vaid-a2a | 13 passed |
+
+   **221 passed, 0 failed, 0 skipped.** (One fix needed to get there:
+   `tests/test_vectors.py`'s `VECTORS_DIR` was a path built with
+   `Path.parents[]` rather than a grep-able string literal, so the first
+   run after the move failed collection with "no vectors found" — not a
+   real test failure, a stale path constant the initial sweep for the
+   string `docs/a2a/vectors` had no way to catch. Fixed by pointing it at
+   `docs/a2a/v1/vectors`; reran clean.)
+5. **Committed and pushed**: `fd4f5b2` on `feat/a2a-extension`, pushed to
+   `origin/feat/a2a-extension` (`090de86..fd4f5b2`). PR #107's body updated
+   in place: URI section now says "now permanent" with the decided value,
+   and a new section states `release-map.json` was deliberately left
+   unchanged, per Allan.
+
+No halt condition was reached. Every step in the follow-up brief was
+completed.
+
