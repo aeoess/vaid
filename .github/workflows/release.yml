@@ -35,13 +35,28 @@
 # `shipped` is a human claim about what a release means, and ADR-0002 exists because
 # that claim was once made ahead of the artifact.
 #
-# SECRETS required in the `release` environment:
-#   CARGO_REGISTRY_TOKEN   crates.io  — scope: publish-update
-#   PYPI_API_TOKEN         PyPI       — project-scoped token
-#   NPM_TOKEN              npm        — automation token, publish rights
-# The `release` environment is the human gate: configure it with required reviewers
-# so a tag push alone cannot publish. A tag is cheap to create and impossible to
-# un-publish.
+# NO PUBLISHING SECRETS ARE REQUIRED, and the `release` environment holds none.
+# All three ecosystems authenticate by OIDC: npm natively, crates.io through
+# `crates-io-auth-action` (cargo cannot perform the exchange itself), PyPI through
+# twine's built-in exchange. The CARGO_REGISTRY_TOKEN, PYPI_API_TOKEN and
+# NPM_TOKEN this block used to require were removed when crates.io and PyPI moved
+# to trusted publishing; `scripts/verify-release-workflow.mjs` check 7 now fails
+# CI if a `secrets.` reference reappears in any publishing job.
+#
+# DO NOT RESTORE ONE AS A FALLBACK. An absent or empty secret expands to the
+# empty string, and crates.io reports that as "please provide a non-empty token"
+# while PyPI reports 403 — the SAME messages a misconfigured trusted publisher
+# produces. The indistinguishability is the defect: it is what sent the 0.7.0
+# release down the wrong path (BACKLOG B14).
+#
+# The `release` environment remains load-bearing for two reasons that have
+# nothing to do with secrets:
+#   · it is the human gate — configure it with required reviewers so a tag push
+#     alone cannot publish. A tag is cheap to create and impossible to un-publish.
+#   · where a registry's trusted publisher is scoped to an environment, its NAME
+#     is part of the publisher identity (owner/repo/workflow/environment), so
+#     renaming it stops every publish authenticating — see the error text on the
+#     crates.io auth step in `publish`.
 #
 # NPM PROVENANCE IS ENABLED. Under trusted publishing npm generates it
 # automatically, so no `--provenance` flag is passed. It publishes a signed, public
