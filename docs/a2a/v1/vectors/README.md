@@ -10,6 +10,12 @@ reference verifier (`python/vaid-a2a/`). Each `NN-name.json` file has:
   `kernelPublicKey` for each accepted issuer, not a bare thumbprint.
 - `requested_action` — the action the incoming A2A message is asking to
   perform, for the "action within leaf scope" check (spec §5 step 5).
+- `verification_time` — the RFC 3339 UTC instant (`Z` suffix) a verifier MUST
+  evaluate this vector at. A verifier must never substitute its own wall
+  clock: these vectors are pinned by distance from fixed `issued_at` /
+  `expires_at` values (see `generate_vectors.py`), and evaluating at a
+  different instant than the one recorded here is not running the vector as
+  published.
 - `inputs.leaf` — the VAID document that would travel under the extension's
   `/vaid` metadata key.
 - `inputs.chain` — the ancestor VAID documents that would travel under

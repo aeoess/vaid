@@ -60,6 +60,13 @@ ISSUED_AT = "2026-06-04T12:00:00Z"
 FAR_FUTURE = "2999-01-01T00:00:00Z"
 PAST = "2020-01-01T00:00:00Z"
 
+# The instant every vector must be verified at (test_vectors.py's own fixed
+# "now", carried into the vector itself rather than left implicit in the test
+# harness). Between ISSUED_AT and FAR_FUTURE, and after PAST, so it changes no
+# existing vector's expected_result: a verifier evaluating any of these
+# vectors at any other instant may disagree with the recorded expectation.
+VERIFICATION_TIME = "2026-07-01T00:00:00Z"
+
 # Placeholder agent public key bytes (DER). Not used for signature verification
 # by any check these vectors exercise; held fixed for byte-reproducibility.
 AGENT_PUBLIC_KEY_DER = list(range(32))
@@ -150,6 +157,7 @@ def main() -> None:
             "revoked."
         ),
         "trust_config": trust_config,
+        "verification_time": VERIFICATION_TIME,
         "requested_action": "data.acme.orders",
         "inputs": {"leaf": leaf, "chain": [root]},
         "revoked_vaid_ids": [],
@@ -174,6 +182,7 @@ def main() -> None:
             "parent never held."
         ),
         "trust_config": trust_config,
+        "verification_time": VERIFICATION_TIME,
         "requested_action": "data.acme.orders",
         "inputs": {"leaf": wide_child, "chain": [root2]},
         "revoked_vaid_ids": [],
@@ -199,6 +208,7 @@ def main() -> None:
             "order."
         ),
         "trust_config": trust_config,
+        "verification_time": VERIFICATION_TIME,
         "requested_action": "data.acme.orders",
         "inputs": {"leaf": expired_leaf, "chain": [root3]},
         "revoked_vaid_ids": [],
@@ -227,6 +237,7 @@ def main() -> None:
             "never revoked."
         ),
         "trust_config": trust_config,
+        "verification_time": VERIFICATION_TIME,
         "requested_action": "data.acme.orders.line_items",
         "inputs": {"leaf": leaf4, "chain": [root4, mid4]},
         "revoked_vaid_ids": [vid(8)],
@@ -252,6 +263,7 @@ def main() -> None:
             "whatever the message is actually asking to do."
         ),
         "trust_config": trust_config,
+        "verification_time": VERIFICATION_TIME,
         "requested_action": "data.acme.customers",
         "inputs": {"leaf": leaf5, "chain": [root5]},
         "revoked_vaid_ids": [],
@@ -281,6 +293,7 @@ def main() -> None:
             "name this one as an untrusted issuer, not a corrupted signature."
         ),
         "trust_config": trust_config,
+        "verification_time": VERIFICATION_TIME,
         "requested_action": "data.acme.orders",
         "inputs": {"leaf": leaf6, "chain": [root6]},
         "revoked_vaid_ids": [],

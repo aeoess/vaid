@@ -9,7 +9,7 @@ test_extension.py-equivalents in other languages would read the same files.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -19,11 +19,11 @@ from vaid_mint.revocation import InMemoryRevocationList
 
 VECTORS_DIR = Path(__file__).resolve().parents[3] / "docs" / "a2a" / "v1" / "vectors"
 
-# All vectors are signed with 2026-06-04 issued_at and either a 2999 or a 2020
-# expires_at (see generate_vectors.py) — pinned by distance, not by the clock,
-# so a fixed "now" keeps these vectors reproducible regardless of when the
-# suite runs.
-NOW = datetime(2026, 7, 1, tzinfo=timezone.utc)
+
+def _parse_verification_time(raw: str) -> datetime:
+    """Parse a vector's own ``verification_time`` (RFC 3339, ``Z`` suffix) —
+    never the wall clock, per the vectors README."""
+    return datetime.fromisoformat(raw.replace("Z", "+00:00"))
 
 
 def _vector_files() -> list[Path]:
@@ -66,7 +66,7 @@ def test_vector(vector_path: Path) -> None:
         trust_config=vector["trust_config"],
         revocation=revocation,
         requested_action=vector.get("requested_action"),
-        now=NOW,
+        now=_parse_verification_time(vector["verification_time"]),
     )
 
     expected_pass = vector["expected_result"] == "pass"

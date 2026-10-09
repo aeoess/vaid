@@ -197,6 +197,19 @@ invisible unless the reason is named.
    and `expires_at` no later than its parent's. Equivalent to the per-hop
    `scope_attenuates`, `caps_attenuate` and `expiry_attenuates` checks inside
    `verify_chain_at`; a violation is `NOT_ATTENUATED`.
+
+   **The empty-set rules.** An empty `scope_boundary` means unrestricted: it
+   contains every resource (`vaid_mint.document.is_in_scope`,
+   `vaid_mint.mint.scope_attenuates_within`). An empty `capability_set` means no
+   capabilities: it contains none (`vaid_mint.document.has_capability`,
+   `vaid_mint.mint.caps_attenuate_within`). Because an empty scope is
+   unrestricted, a child may carry an empty `scope_boundary` only if its
+   parent's `scope_boundary` is also empty; a child with no declared parent
+   scope to inherit from cannot be granted the unrestricted one
+   (`vaid_mint.mint.scope_attenuates_within`'s empty-child guard). There is no
+   corresponding guard for `capability_set`, because an empty child
+   capability set is already the most restrictive case and attenuates under
+   any parent.
 5. **Requested action is within the leaf's scope.** The specific action the
    message is requesting is checked against the leaf VAID's `scope_boundary`
    (`vaid_mint.document.is_in_scope`) and, if the action corresponds to a named
