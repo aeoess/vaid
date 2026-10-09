@@ -10,6 +10,7 @@
     "python/vaid-mint": { "dir": "python/vaid-mint" },
     "python/vaid-langchain": { "dir": "python/vaid-langchain" },
     "python/vaid-a2a": { "dir": "python/vaid-a2a" },
+    "python/vaid-adk": { "dir": "python/vaid-adk" },
 
     "npm/vaid-pop": {
       "dir": "typescript/vaid-pop",
