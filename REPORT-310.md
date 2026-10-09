@@ -203,8 +203,54 @@ structure, vaid-skill, and (after the fix above) capabilities/claims-register.
 ## Not done, by instruction
 
 - `python/vaid-a2a` was not touched.
-- `release-map.json` was not edited.
+- `release-map.json` was not edited. (Superseded by the Follow-up below.)
 - Nothing was merged, tagged, bumped, released or published. No push to
   `main`. No post outside `solara-associates/vaid`.
 - `docs/drafts/adk-4992-comment.md` is a draft only; nothing was posted to
   GitHub issues #4992 or #6551.
+
+## Follow-up
+
+The `release-map` omission above was a misread, not an intended gap: the
+brief's fallback said to follow the `vaid-a2a` pattern when CI requires
+registration, and `vaid-a2a` IS registered in `release-map.json`
+(`"python/vaid-a2a": { "dir": "python/vaid-a2a" }`). Corrected by adding the
+exact mirror, one line: `"python/vaid-adk": { "dir": "python/vaid-adk" }`.
+Nothing else in `release-map.json` changed, and no tag, version bump, or
+publish was triggered. The `REGISTRY_SCOPE` line added earlier (a separate
+file, `scripts/verify-package-versions.mjs`) was kept unchanged, per
+instruction.
+
+Commit: `3b742c6b5564e54413369231704b384f37876cb3`.
+
+Verified locally before pushing: `node scripts/verify-release-map.mjs`
+passes; `node scripts/verify-package-versions.mjs`,
+`node scripts/check-readme-drift.mjs`, `node scripts/verify-release-workflow.mjs`
+and `node scripts/verify-no-guarded-terms.mjs "origin/main"` all still pass
+with no state change; `python -m pytest python/vaid-pop python/vaid-mint
+python/vaid-langchain python/vaid-a2a python/vaid-adk` still passes all 234
+tests.
+
+On push, `Rust conformance (cargo test --workspace)` failed once on this
+commit, on a test this branch never touches:
+`crates/vaid-mint/tests/cross_key_attestation.rs::expired_consent_is_consent_expired`
+("lapsed consent is authentic and unusable, and the verdict must say so";
+got `NotAttenuated`, expected `ConsentExpired`). Per instruction, this was
+treated as a halt condition (a check other than `release-map` changing
+state) rather than fixed or worked around. Re-running only that job (no code
+change, `gh run rerun <run-id> --job 113905997261`) made it pass. The
+failure's shape, a boundary assertion over a validity window checked against
+the wall clock at test-run time, rather than a fixed, injected instant, is
+consistent with a timing-sensitive test rather than anything this branch
+introduced (this branch touches no Rust code). Flagging it here as a known
+flake worth investigating separately:
+`crates/vaid-mint/tests/cross_key_attestation.rs::expired_consent_is_consent_expired`.
+I did not investigate further or modify that test, since the single rerun
+cleared it and no code change was authorized for this follow-up.
+
+Final CI status, confirmed via the GitHub API against commit
+`3b742c6b5564e54413369231704b384f37876cb3` (`gh api
+/repos/solara-associates/vaid/commits/3b742c6b5564e54413369231704b384f37876cb3/check-runs`):
+all 16 check runs report `completed` / `success`, including
+`Every publishable package is reachable by the release workflow` and
+`Rust conformance (cargo test --workspace)`.
