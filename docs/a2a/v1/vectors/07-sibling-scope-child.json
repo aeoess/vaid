@@ -8,6 +8,7 @@
       }
     ]
   },
+  "verification_time": "2026-07-01T00:00:00Z",
   "requested_action": "data.acme-secret",
   "inputs": {
     "leaf": {

@@ -359,6 +359,7 @@ def main() -> None:
         write_vector(name, {
             "description": description,
             "trust_config": trust_config,
+            "verification_time": VERIFICATION_TIME,
             "requested_action": action,
             "inputs": {"leaf": child, "chain": [parent]},
             "revoked_vaid_ids": [],
